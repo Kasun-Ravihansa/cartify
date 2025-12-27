@@ -11,12 +11,13 @@ export const syncUserCreation = inngest.createFunction(
   { event: 'clerk/user.created' },
   async ({ event }) => {
     try {
-      const { id, first_name, last_name, email_addresses, image_url } = event.data;
+      const { id, first_name, last_name, email_addresses, image_url, public_metadata } = event.data;
       const userData = {
         _id: id,
         email: email_addresses[0].email_address,
         name: `${first_name} ${last_name}`,
-        imageUrl: image_url
+        imageUrl: image_url,
+        role: public_metadata.role || "user"
       };
 
       await connectDB();
@@ -37,11 +38,12 @@ export const syncUserUpdation = inngest.createFunction(
   { event: 'clerk/user.updated' },
   async ({ event }) => {
     try {
-      const { id, first_name, last_name, email_addresses, image_url } = event.data;
+      const { id, first_name, last_name, email_addresses, image_url, public_metadata } = event.data;
       const userData = {
         email: email_addresses[0].email_address,
         name: `${first_name} ${last_name}`,
-        imageUrl: image_url
+        imageUrl: image_url,
+        role: public_metadata.role || "user"
       };
 
       await connectDB();
@@ -75,3 +77,41 @@ export const syncUserDeletion = inngest.createFunction(
     }
   }
 );
+
+//inngest function to create order
+export const createUserOrder = inngest.createFunction(
+
+  {
+    id: 'create-user-order',
+    batchEvents: {
+      maxSize: 5,
+      timeout: '5s'
+
+    }
+
+  }, {
+  event: 'order/created'
+}, async ({ events }) => {
+
+
+  const order = events.map((event) => {
+    return {
+      userId: event.data.userId,
+      items: event.data.items,
+      amount: event.data.amount,
+      address: event.data.address,
+      date: event.data.date
+    }
+  })
+
+  await connectDB()
+  await Order.insertMany(order)
+
+  return { success: true, processed: order.length };
+}
+
+
+
+
+
+)
