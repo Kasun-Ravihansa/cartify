@@ -1,21 +1,25 @@
 import product from "@/models/product";
+import User from "@/models/user";
+import { inngest } from "@/configuration/inngest";
 import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 export async function POST(request) {
     try {
-
         const { userId } = getAuth(request)
-        const { addressId, items } = await request.json();
+        const { address, items } = await request.json();
 
         if (!address || items.length === 0) {
             return NextResponse.json({ success: false, message: "Address or items not found" })
         }
 
-        const amount = await items.reduce(async (acc, item) => {
-            const product = await Product.findById(item.product)
-            return acc + product.offerPrice * item.quantity
-        }, 0)
+        let amount = 0;
+        for (const item of items) {
+            const Product = await product.findById(item.product);
+            if (Product) {
+                amount += Product.offerPrice * item.quantity;
+            }
+        }
 
         await inngest.send({
             name: 'order/created',
